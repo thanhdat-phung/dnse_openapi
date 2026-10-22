@@ -26,7 +26,15 @@ def main() -> None:
     from ..config import Settings
     from .app import create_app
 
-    settings = Settings.from_env()
+    try:
+        settings = Settings.from_env()
+    except ValueError as exc:
+        sys.stderr.write(f"Configuration error: {exc}\n")
+        sys.stderr.write(
+            "Copy .env.example to .env, fill in your DNSE sandbox keys, then retry.\n"
+        )
+        raise SystemExit(2) from None
+
     app = create_app(settings=settings)
     print(f"DNSE OpenAPI local server v{__version__}")
     print(f"  upstream: {settings.base_url} (version {settings.api_version})")

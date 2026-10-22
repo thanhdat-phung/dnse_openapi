@@ -186,10 +186,33 @@ Stock prices returned by `/price/{symbol}/secdef` are in **thousands of VND**. M
 
 ## Local server
 
-```bash
+The `dnse-openapi` command is installed into the project venv, not into the system
+Python PATH. Run it from the repository root with the venv active:
+
+```powershell
+cd C:\Users\dat\Downloads\Documents\Books\Trading\dnse_openapi
+.\.venv\Scripts\Activate.ps1
+Copy-Item .env.example .env
+notepad .env          # fill in your DNSE sandbox keys
 dnse-openapi
-# or: python -m dnse_openapi.server
 ```
+
+If PowerShell blocks activation, call the venv executable directly:
+
+```powershell
+.\.venv\Scripts\dnse-openapi.exe
+```
+
+Do **not** run `python -m dnse_openapi.server` from `src\dnse_openapi` with the
+system Python; that interpreter does not have the package or server extras. The
+venv equivalent, run from the repository root, is:
+
+```powershell
+.\.venv\Scripts\python.exe -m dnse_openapi.server
+```
+
+On macOS/Linux, activate with `source .venv/bin/activate` and run the same
+commands.
 
 It listens on `127.0.0.1:8000` by default and mirrors DNSE paths:
 
