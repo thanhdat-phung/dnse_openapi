@@ -114,6 +114,36 @@ with DNSEClient.from_env() as client:
     print(result)
 ```
 
+### Check balance
+
+Balances are read-only, so no OTP or trading token is needed:
+
+```python
+from dnse_openapi import DNSEClient
+
+with DNSEClient.from_env() as client:
+    accounts = client.accounts.get_accounts()
+
+    # Pick the stock sub-account; use derivativeAccount for derivatives.
+    account_no = next(a["id"] for a in accounts if a.get("dealAccount"))
+
+    balance = client.accounts.get_balances(account_no)
+    print("available cash:", balance["stock"]["availableCash"])
+    print("total cash:    ", balance["stock"]["totalCash"])
+    print("withdrawable:  ", balance["stock"]["withdrawableCash"])
+```
+
+The response has separate sections: `stock`, `derivative`, `bond`, and `egg`.
+Useful stock fields are `totalCash`, `availableCash`, `withdrawableCash`,
+`totalDebt`, and `orderSecured`. The derivative section uses `remainSecure`,
+`usedSecure`, and `totalLoanDebt`.
+
+A complete script is in `examples/check_balance.py`:
+
+```powershell
+.\.venv\Scripts\python.exe examples\check_balance.py
+```
+
 ### STOP order
 
 STOP orders use `orderCategory=STOP` and carry both the trigger fields and the fields of the
