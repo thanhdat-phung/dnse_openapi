@@ -81,9 +81,25 @@ class DNSEClient:
     def from_env(
         cls,
         env: Mapping[str, str] | None = None,
+        *,
+        load_env_file: bool = True,
         **overrides: Any,
     ) -> DNSEClient:
-        """Build a client from ``DNSE_*`` environment variables."""
+        """Build a client from ``DNSE_*`` environment variables.
+
+        When ``env`` is omitted and ``python-dotenv`` is installed, a ``.env``
+        file in the current directory (or a parent) is loaded first. Importing
+        the package itself has no file-system side effects.
+        """
+        if env is None and load_env_file:
+            try:
+                from dotenv import find_dotenv, load_dotenv
+            except ImportError:  # core install without the optional extra
+                pass
+            else:
+                dotenv_path = find_dotenv(usecwd=True)
+                if dotenv_path:
+                    load_dotenv(dotenv_path)
         return cls.from_settings(Settings.from_env(env), **overrides)
 
     @classmethod

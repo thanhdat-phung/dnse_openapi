@@ -53,8 +53,10 @@ DNSE_ACCOUNT_NO=0001179019
 ```
 
 `DNSE_API_KEY` and `DNSE_API_SECRET` are the credentials issued when you register LightSpeed
-API (or the separate Sandbox keys). They are **not** your login username/password. The library
-never reads `.env` implicitly; the server entry point calls `load_dotenv()`.
+API (or the separate Sandbox keys). They are **not** your login username/password. Importing the
+package has no side effects. `DNSEClient.from_env()` loads `.env` from the current directory or
+a parent when `python-dotenv` is installed (the `server` and `dev` extras include it). Pass
+`load_env_file=False` to skip that lookup, or set the variables in your shell.
 
 ## Sandbox first
 
@@ -88,8 +90,10 @@ from dnse_openapi import DNSEClient, MarketType, NormalOrder
 
 with DNSEClient.from_env() as client:
     # 1. Get identifiers from DNSE instead of hard-coding them.
-    accounts = client.accounts.get_accounts()
-    account_no = accounts[0]["id"]
+    profile = client.accounts.get_accounts()
+    account_no = next(
+        account["id"] for account in profile["accounts"] if account.get("dealAccount")
+    )
 
     # 2. Authenticate the trading session (2FA).
     #    Requires DNSE_OTP_IMAP_USER / DNSE_OTP_IMAP_PASSWORD for Email OTP.
@@ -122,10 +126,12 @@ Balances are read-only, so no OTP or trading token is needed:
 from dnse_openapi import DNSEClient
 
 with DNSEClient.from_env() as client:
-    accounts = client.accounts.get_accounts()
+    profile = client.accounts.get_accounts()
 
     # Pick the stock sub-account; use derivativeAccount for derivatives.
-    account_no = next(a["id"] for a in accounts if a.get("dealAccount"))
+    account_no = next(
+        account["id"] for account in profile["accounts"] if account.get("dealAccount")
+    )
 
     balance = client.accounts.get_balances(account_no)
     print("available cash:", balance["stock"]["availableCash"])

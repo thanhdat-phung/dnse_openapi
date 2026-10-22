@@ -41,10 +41,16 @@ def test_request_is_signed_and_versioned(make_client: Callable[..., DNSEClient])
 
     def handler(request: httpx.Request) -> httpx.Response:
         captured["request"] = request
-        return httpx.Response(200, json=[{"id": "0001"}])
+        payload = {
+            "name": "Test Investor",
+            "custodyCode": "000C000001",
+            "investorId": "1000000001",
+            "accounts": [{"id": "0001"}],
+        }
+        return httpx.Response(200, json=payload)
 
     client = make_client(handler)
-    assert client.accounts.get_accounts() == [{"id": "0001"}]
+    assert client.accounts.get_accounts()["accounts"] == [{"id": "0001"}]
 
     request = captured["request"]
     assert request.method == "GET"
@@ -84,10 +90,10 @@ def test_retry_on_429_uses_a_fresh_signature(
         requests.append(request)
         if len(requests) == 1:
             return httpx.Response(429, headers={"Retry-After": "0"})
-        return httpx.Response(200, json=[])
+        return httpx.Response(200, json={"accounts": []})
 
     client = make_client(handler, max_retries=2, sleep=lambda _: None)
-    assert client.accounts.get_accounts() == []
+    assert client.accounts.get_accounts() == {"accounts": []}
 
     assert len(requests) == 2
     first_nonce = _nonce(requests[0].headers["X-Signature"])

@@ -13,7 +13,15 @@ from dnse_openapi.server.app import create_app
 def _handler(request: httpx.Request) -> httpx.Response:
     path = request.url.path
     if path == "/accounts":
-        return httpx.Response(200, json=[{"id": "0001", "dealAccount": True}])
+        return httpx.Response(
+            200,
+            json={
+                "name": "Test Investor",
+                "custodyCode": "000C000001",
+                "investorId": "1000000001",
+                "accounts": [{"id": "0001", "dealAccount": True}],
+            },
+        )
     if path == "/registration/trading-token":
         return httpx.Response(200, json={"tradingToken": "cached-token"})
     if path == "/registration/send-email-otp":
@@ -48,7 +56,7 @@ def test_health(server_client: DNSEClient) -> None:
 
 def test_accounts_and_balances(server_client: DNSEClient) -> None:
     with TestClient(create_app(client=server_client)) as http:
-        assert http.get("/accounts").json()[0]["id"] == "0001"
+        assert http.get("/accounts").json()["accounts"][0]["id"] == "0001"
         assert http.get("/accounts/0001/balances").json()["cash"] == 1000
 
 

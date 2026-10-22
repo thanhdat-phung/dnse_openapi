@@ -12,6 +12,8 @@ Set DNSE_ACCOUNT_NO in .env, or let the script pick the first stock
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 from dnse_openapi import DNSEClient
 
 
@@ -21,12 +23,22 @@ def _money(value: object) -> str:
     return "n/a"
 
 
+def _sub_accounts(profile: object) -> list[Mapping[str, object]]:
+    """Return the sub-account list from the GET /accounts profile object."""
+    accounts = profile.get("accounts", []) if isinstance(profile, Mapping) else profile
+    if not isinstance(accounts, list):
+        return []
+    return [account for account in accounts if isinstance(account, Mapping)]
+
+
 def main() -> None:
     with DNSEClient.from_env() as client:
         account_no = client.account_no
         if not account_no:
-            accounts = client.accounts.get_accounts()
-            stock_accounts = [a for a in accounts if a.get("dealAccount")]
+            profile = client.accounts.get_accounts()
+            stock_accounts = [
+                account for account in _sub_accounts(profile) if account.get("dealAccount")
+            ]
             if not stock_accounts:
                 raise SystemExit(
                     "No stock sub-account found; set DNSE_ACCOUNT_NO in .env"

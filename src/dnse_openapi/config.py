@@ -1,8 +1,8 @@
 """Configuration helpers.
 
-The library never reads ``.env`` implicitly: callers (or the server entry point)
-decide when to load environment files, so that importing the package has no side
-effects.
+Importing the package has no side effects. :meth:`DNSEClient.from_env` may load
+a ``.env`` file when ``python-dotenv`` is installed; callers that want full
+control can use :meth:`Settings.from_env` with an explicit mapping.
 """
 
 from __future__ import annotations

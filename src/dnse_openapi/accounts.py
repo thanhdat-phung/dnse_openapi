@@ -22,9 +22,11 @@ class AccountClient:
     # -- accounts -----------------------------------------------------------
 
     def get_accounts(self) -> Any:
+        """Return the investor profile; sub-accounts are in ``payload["accounts"]``."""
         return self._transport.get("/accounts").data
 
     def get_balances(self, account_no: str) -> Any:
+        """Return the stock/derivative/bond/egg balance sections for an account."""
         return self._transport.get(f"/accounts/{_seg(account_no)}/balances").data
 
     def get_loan_packages(
