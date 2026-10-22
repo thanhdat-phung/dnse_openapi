@@ -150,6 +150,73 @@ A complete script is in `examples/check_balance.py`:
 .\.venv\Scripts\python.exe examples\check_balance.py
 ```
 
+### Market data
+
+Market data is read-only and signed; no OTP or trading token is needed.
+
+```python
+import time
+
+from dnse_openapi import DNSEClient
+
+with DNSEClient.from_env() as client:
+    symbol, board = "HPG", "G1"
+
+    # Reference, ceiling and floor prices (in thousands of VND).
+    secdef = client.accounts.get_security_definition(symbol, board)
+    print(secdef[0]["basicPrice"], secdef[0]["ceilingPrice"], secdef[0]["floorPrice"])
+
+    # Latest matched trade.
+    trade = client.accounts.get_latest_trade(symbol, board)["trades"][0]
+    print(trade["matchPrice"], trade["matchQtty"], trade["time"])
+
+    # Latest bid/ask depth.
+    quote = client.accounts.get_latest_quote(symbol, board)["quotes"][0]
+    print("best bid:  ", quote["bid"][0])
+    print("best offer:", quote["offer"][0])
+
+    # Daily candles for the last 30 days.
+    now = int(time.time())
+    ohlc = client.accounts.get_ohlc(
+        "STOCK",
+        {
+            "symbol": symbol,
+            "resolution": "1D",
+            "from": now - 30 * 24 * 3600,
+            "to": now,
+        },
+    )
+    print("timestamps:", ohlc["t"])
+    print("closes:    ", ohlc["c"])
+```
+
+For `get_ohlc`, the first argument is the **market type** (`STOCK`, `DERIVATIVE`, or `INDEX`),
+not the candle size. Put the candle size in `query["resolution"]`: `1`, `3`, `5`, `15`, `30`,
+`1h`, `1D`, or `1W`.
+
+| Data | Method |
+|---|---|
+| Reference / ceiling / floor | `get_security_definition(symbol, board_id)` |
+| Latest trade | `get_latest_trade(symbol, board_id)` |
+| Historical trades | `get_trades(symbol, ...)` |
+| Latest order book | `get_latest_quote(symbol, board_id)` |
+| Historical quotes | `get_quotes(symbol, ...)` |
+| OHLCV candles | `get_ohlc(market_type, query)` |
+| Market index history | `get_market_index(index_name, ...)` |
+| Expected / close price | `get_expected_price(...)`, `get_close_price(...)` |
+| Foreign trading | `get_foreign_trading(symbol, ...)` |
+| Instrument search | `get_instruments(symbol=..., market_id=...)` |
+| Trading sessions / dates | `get_trading_session(...)`, `get_working_dates()` |
+
+Stock prices from these endpoints are in **thousands of VND**, so `21.25` means
+`21,250 VND`. Order prices must be sent in VND (`21_250`).
+
+A complete runnable script is in `examples/market_data.py`:
+
+```powershell
+.\.venv\Scripts\python.exe examples\market_data.py HPG G1
+```
+
 ### STOP order
 
 STOP orders use `orderCategory=STOP` and carry both the trigger fields and the fields of the

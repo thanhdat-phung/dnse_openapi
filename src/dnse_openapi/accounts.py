@@ -215,6 +215,13 @@ class AccountClient:
         ).data
 
     def get_ohlc(self, bar_type: str, query: dict[str, Any] | None = None) -> Any:
+        """Return OHLCV candles from ``GET /price/ohlc``.
+
+        ``bar_type`` is the market type (``STOCK``, ``DERIVATIVE`` or ``INDEX``),
+        not the candle size. ``query`` must contain ``symbol``, ``resolution``,
+        ``from`` and ``to`` (Unix seconds). Resolution is one of ``1``, ``3``,
+        ``5``, ``15``, ``30``, ``1h``, ``1D`` or ``1W``.
+        """
         params = dict(query or {})
         params["type"] = bar_type
         return self._transport.get("/price/ohlc", params=params).data

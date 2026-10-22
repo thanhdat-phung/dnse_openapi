@@ -81,6 +81,31 @@ def test_query_parameters_are_not_part_of_the_signature(
     _assert_signature(request, "/accounts/0001/orders")
 
 
+def test_ohlc_query_is_sent_and_signed(
+    make_client: Callable[..., DNSEClient],
+) -> None:
+    captured: dict[str, httpx.Request] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["request"] = request
+        return httpx.Response(200, json={"t": []})
+
+    client = make_client(handler)
+    client.accounts.get_ohlc(
+        "STOCK",
+        {"symbol": "HPG", "resolution": "1D", "from": 100, "to": 200},
+    )
+
+    request = captured["request"]
+    assert request.url.path == "/price/ohlc"
+    assert request.url.params["type"] == "STOCK"
+    assert request.url.params["symbol"] == "HPG"
+    assert request.url.params["resolution"] == "1D"
+    assert request.url.params["from"] == "100"
+    assert request.url.params["to"] == "200"
+    _assert_signature(request, "/price/ohlc")
+
+
 def test_retry_on_429_uses_a_fresh_signature(
     make_client: Callable[..., DNSEClient],
 ) -> None:
