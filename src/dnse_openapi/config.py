@@ -10,9 +10,23 @@ from __future__ import annotations
 import os
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
+from urllib.parse import urlparse
 
 DEFAULT_BASE_URL = "https://openapi.dnse.com.vn"
 SANDBOX_BASE_URL = "https://sb-openapi.dnse.com.vn"
+
+# Market data is streamed over WebSocket rather than the REST host. Sandbox
+# keys are only accepted by the sandbox stream host.
+DEFAULT_WS_URL = "wss://ws-openapi.dnse.com.vn"
+SANDBOX_WS_URL = "wss://ws-sb-openapi.dnse.com.vn"
+
+
+def ws_url_for(base_url: str) -> str:
+    """Pick the market-data WebSocket host that matches ``base_url``."""
+    host = (urlparse(base_url).hostname or "").lower()
+    if host.startswith("sb-") or "sandbox" in host:
+        return SANDBOX_WS_URL
+    return DEFAULT_WS_URL
 
 # Matches the version shipped with the official DNSE sample SDK. Override with
 # DNSE_API_VERSION when DNSE publishes a newer version header.
@@ -44,6 +58,9 @@ class Settings:
     timeout: float = 30.0
     max_retries: int = 2
 
+    # Market-data stream (derived from base_url when unset)
+    ws_url: str | None = None
+
     # Local server
     server_host: str = "127.0.0.1"
     server_port: int = 8000
@@ -65,6 +82,10 @@ class Settings:
             raise ValueError("base_url must start with http:// or https://")
         if not self.date_header_name:
             raise ValueError("date_header_name must not be empty")
+        if self.ws_url is None:
+            object.__setattr__(self, "ws_url", ws_url_for(self.base_url))
+        elif not self.ws_url.startswith(("wss://", "ws://")):
+            raise ValueError("ws_url must start with wss:// or ws://")
         if self.timeout <= 0:
             raise ValueError("timeout must be positive")
         if self.max_retries < 0:
@@ -99,6 +120,7 @@ class Settings:
             account_no=text("DNSE_ACCOUNT_NO"),
             timeout=float(text("DNSE_TIMEOUT", "30") or "30"),
             max_retries=int(text("DNSE_MAX_RETRIES", "2") or "2"),
+            ws_url=text("DNSE_WS_URL"),
             server_host=text("DNSE_SERVER_HOST", "127.0.0.1") or "127.0.0.1",
             server_port=int(text("DNSE_SERVER_PORT", "8000") or "8000"),
             server_token=text("DNSE_SERVER_TOKEN"),

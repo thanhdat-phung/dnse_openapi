@@ -11,7 +11,7 @@ import httpx
 
 from .accounts import AccountClient
 from .auth import AuthClient, TokenStore
-from .config import DEFAULT_API_VERSION, DEFAULT_BASE_URL, Settings
+from .config import DEFAULT_API_VERSION, DEFAULT_BASE_URL, Settings, ws_url_for
 from .errors import DNSEValidationError
 from .models import (
     MarketType,
@@ -23,6 +23,7 @@ from .models import (
 from .orders import OrderClient
 from .otp import EmailOTPReader
 from .signing import DEFAULT_ALGORITHM
+from .stream import MarketStream
 from .transport import Transport
 
 
@@ -43,6 +44,7 @@ class DNSEClient:
         date_header_name: str = "Date",
         algorithm: str = DEFAULT_ALGORITHM,
         account_no: str | None = None,
+        ws_url: str | None = None,
         token_store: TokenStore | None = None,
         timeout: float = 30.0,
         max_retries: int = 2,
@@ -53,6 +55,9 @@ class DNSEClient:
         sleep: Callable[[float], None] | None = None,
     ) -> None:
         self.account_no = account_no
+        self._ws_url = ws_url or ws_url_for(base_url)
+        self._api_key = api_key
+        self._api_secret = api_secret
         self.transport = Transport(
             api_key,
             api_secret,
@@ -121,6 +126,7 @@ class DNSEClient:
             "api_version": settings.api_version,
             "date_header_name": settings.date_header_name,
             "account_no": settings.account_no,
+            "ws_url": settings.ws_url,
             "timeout": settings.timeout,
             "max_retries": settings.max_retries,
             "otp_reader": reader,
@@ -186,6 +192,18 @@ class DNSEClient:
         )
 
     # -- lifecycle ----------------------------------------------------------
+
+    def market_stream(self, **overrides: Any) -> MarketStream:
+        """Return a market-data WebSocket client for these credentials.
+
+        The stream is not connected until it is awaited or used as an async
+        context manager::
+
+            async with client.market_stream() as stream:
+                ...
+        """
+        overrides.setdefault("url", self._ws_url)
+        return MarketStream(self._api_key, self._api_secret, **overrides)
 
     def close(self) -> None:
         self.transport.close()

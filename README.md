@@ -31,11 +31,12 @@ python -m venv .venv
 # macOS / Linux
 # source .venv/bin/activate
 
-pip install -e ".[server,dev]"
+pip install -e ".[server,dev,stream]"
 ```
 
 The core client only needs `httpx` and `pydantic`. The `server` extra adds FastAPI, Uvicorn and
-dotenv; `dev` adds pytest, ruff and mypy.
+dotenv; `stream` adds the WebSocket market-data client (`websockets`, `msgpack`); `dev` adds
+pytest, ruff and mypy.
 
 ## Configure
 
@@ -150,7 +151,12 @@ A complete script is in `examples/check_balance.py`:
 .\.venv\Scripts\python.exe examples\check_balance.py
 ```
 
-### Market data
+### Market data (REST, production only)
+
+> **Sandbox note:** DNSE serves these REST `/price/*` routes from production only.
+> `https://sb-openapi.dnse.com.vn/price/...` returns `404 page not found` even with
+> valid sandbox keys, because the routes are not deployed there. Use the
+> [WebSocket stream](#live-stream-websocket) with sandbox keys instead.
 
 Market data is read-only and signed; no OTP or trading token is needed.
 
@@ -216,6 +222,61 @@ A complete runnable script is in `examples/market_data.py`:
 ```powershell
 .\.venv\Scripts\python.exe examples\market_data.py HPG G1
 ```
+
+### Live stream (WebSocket)
+
+Real-time data comes from the WebSocket endpoint, which sandbox **does** serve.
+`client.market_stream()` picks `wss://ws-sb-openapi.dnse.com.vn` when
+`DNSE_BASE_URL` points at sandbox and `wss://ws-openapi.dnse.com.vn` otherwise.
+Override the host with `DNSE_WS_URL`. Install the extra first:
+`pip install -e ".[stream]"`.
+
+```python
+import asyncio
+
+from dnse_openapi import DNSEClient, ohlc_channel, tick_channel, top_price_channel
+
+
+async def main() -> None:
+    client = DNSEClient.from_env()
+    try:
+        async with client.market_stream() as stream:
+            await stream.subscribe(tick_channel("G1"), ["HPG"])
+            await stream.subscribe(top_price_channel("G1"), ["HPG"])
+            await stream.subscribe(ohlc_channel("1"), ["HPG"])
+
+            async for message in stream.messages():
+                print(message["T"], message.get("symbol"), message.get("matchPrice"))
+    finally:
+        client.close()
+
+
+asyncio.run(main())
+```
+
+`MarketStream` handles the HMAC handshake, answers server `ping` with `pong`,
+sends an application-level ping every 25 seconds, and reconnects (re-auth and
+re-subscribe) after the server's 8-hour cutoff or a dropped socket. Pass
+`auto_reconnect=False` to surface disconnects as `DNSEStreamError`,
+`on_control=...` to observe `subscribed`/`error` frames, and
+`encoding="msgpack"` for binary frames.
+
+Channel helpers: `tick_channel`, `tick_extra_channel`, `top_price_channel`,
+`expected_price_channel`, `security_definition_channel`, `ohlc_channel`
+(`closed=True` for finished candles), `market_index_channel`,
+`estimated_market_index_channel`, `foreign_channel`, `session_channel`.
+Boards are `G1` (continuous), `G3` (after-hours), `G4` (odd lot), `T1`/`T3`/`T4`/`T6`
+(put-through). Symbols must be upper case; the client normalises them for you.
+
+A runnable client is in `examples/market_stream.py`:
+
+```powershell
+.\.venv\Scripts\python.exe examples\market_stream.py HPG G1 5
+```
+
+The sandbox feed only pushes data while the simulated session is active, so a
+quiet stream outside trading hours is expected; the subscribe confirmations
+still arrive.
 
 ### STOP order
 
@@ -377,7 +438,7 @@ overrides. The default is configurable with `DNSE_API_VERSION`, and the date hea
 
 ## Not implemented (yet)
 
-- WebSocket streaming (`wss://ws-openapi.dnse.com.vn`) for order/position/market-data events
+- Trading-data WebSocket (order, position and broker events)
 - Broker/SACO endpoints
 - Typed models for PnL configuration payloads (accepted as raw dictionaries)
 - Automatic sandbox/production switching beyond changing `DNSE_BASE_URL`
@@ -417,6 +478,7 @@ src/dnse_openapi/
   auth.py         # OTP flows, trading-token cache
   accounts.py     # read endpoints
   orders.py       # place / replace / cancel / close / reverse
+  stream.py       # market-data WebSocket (auth, channels, keepalive, reconnect)
   client.py       # facade and env construction
   otp/email.py    # optional IMAP OTP reader
   server/         # local FastAPI facade

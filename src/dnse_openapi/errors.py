@@ -67,6 +67,20 @@ class DNSEServerError(DNSEAPIError):
     """A 5xx response from DNSE."""
 
 
+class DNSEStreamError(DNSEError):
+    """The market-data WebSocket failed, disconnected, or reported an error."""
+
+    def __init__(self, message: str, *, code: str | None = None) -> None:
+        super().__init__(message)
+        self.code = code
+
+    def __str__(self) -> str:
+        parts = [super().__str__()]
+        if self.code:
+            parts.append(f"code={self.code}")
+        return " ".join(parts)
+
+
 class TradingTokenRequired(DNSEError):
     """No valid trading token is available; authenticate OTP first."""
 
