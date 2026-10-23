@@ -289,6 +289,13 @@ Stock prices returned by `/price/{symbol}/secdef` are in **thousands of VND**. M
 
 ## Local server
 
+On Windows, `start_server.bat` does the setup checks for you: it uses the project venv,
+creates `.env` from `.env.example` on first run, and keeps the window open if anything fails.
+
+```powershell
+.\start_server.bat
+```
+
 The `dnse-openapi` command is installed into the project venv, not into the system
 Python PATH. Run it from the repository root with the venv active:
 
